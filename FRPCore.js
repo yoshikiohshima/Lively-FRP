@@ -77,6 +77,18 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
         return this;
     },
 
+    collector: function(event, initialValue, func) {
+        this.setUp("collectE", [this.ref(event)],
+            function(space, evaluator) {
+                return (space.frpGet(this.func))(space.frpGet(this.event), (this.currentValue === undefined ? space.frpGet(this.initialValue) : this.currentValue))},
+            null,
+            true);
+        this.initialValue = initialValue;
+        this.func = func;
+        this.event = this.ref(event);
+        return this;        
+    },
+
     expr: function(arguments, expression, isContinuous) {
         this.setUp("exprE", arguments, null, null, isContinuous);
         this.expression = expression;
@@ -295,8 +307,8 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         if (!elem.visited) {
             elem.visited = true;
             col.push(elem);
-            for (var i = 0; i < this.dependencies.length; i++) {
-                var srcElem = this.dependencies[i];
+            for (var i = 0; i < this.dependencies[elem.id].length; i++) {
+                var srcElem = this.dependencies[elem.id][i];
                 this.visit(srcElem, col);
             }
             col.pop();

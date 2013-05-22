@@ -132,7 +132,36 @@ function(t) {return t * 3});
         this.assertEquals(expr1.currentValue, -8900);
         obj.evaluateAt(4000);
         this.assertEquals(expr1.currentValue, -11900);
+    },
+    testCollect: function() {
+        var obj = {};
+        var evaluator = this.newEvaluator();
+        evaluator.installTo(obj);
+
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
+        timer.finalize([]);
+        timer.installTo(obj, "timer");
+
+        var collector = new users.ohshima.frp.FRPCore.EventStream().collector("timer", {now: 1, prev: 0},
+            function(newVal, oldVal) {return {now: oldVal.now + oldVal.prev, prev: oldVal.now}});
+        collector.installTo(obj, "collector");
+        collector.finalize([]);
+
+        evaluator.reset();
+        evaluator.addStreamsFrom(obj);
+        evaluator.sort();
+
+        debugger;
+        obj.evaluateAt(1000);
+        this.assertEquals(collector.currentValue.now, 1);
+        obj.evaluateAt(2000);
+        this.assertEquals(collector.currentValue.now, 2);
+        obj.evaluateAt(3000);
+        this.assertEquals(collector.currentValue.now, 3);
+        obj.evaluateAt(4000);
+        this.assertEquals(collector.currentValue.now, 5);
     }
+
 },
 'support', {
     newEvaluator: function() {
