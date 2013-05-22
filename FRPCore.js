@@ -77,10 +77,39 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
         return this;
     },
 
+    durationE: function(interval, duration) {
+        this.setUp("durationE", [],
+            function(space, evaluator) {
+                var dur = space.frpGet(this.duration);
+                if (this.start === null) {
+                    this.start = this.ceilTime(evaluator.currentTime, this.interval);
+                }
+                var val = this.ceilTime(evaluator.currentTime, this.interval) - this.start;
+                if (val >= dur) {
+                    this.done = true;
+                    val = dur;
+                }
+                return val;
+            },
+            function(space, time, evaluator) {
+                return this.start === null || !this.done ||
+                    ((this.lastTime + space.frpGet(this.interval) <= time) &&
+                        (this.start + space.frpGet(this.duration) >= time));
+            },
+            false);
+        this.interval = interval;
+        this.duration = duration;
+        this.done = false;
+        this.start = null;
+        return this;
+    },
+
     collector: function(event, initialValue, func) {
         this.setUp("collectE", [this.ref(event)],
             function(space, evaluator) {
-                return (space.frpGet(this.func))(space.frpGet(this.event), (this.currentValue === undefined ? space.frpGet(this.initialValue) : this.currentValue))},
+                return (space.frpGet(this.func))
+                    (space.frpGet(this.event),
+                    (this.currentValue === undefined ? space.frpGet(this.initialValue) : this.currentValue))},
             null,
             true);
         this.initialValue = initialValue;

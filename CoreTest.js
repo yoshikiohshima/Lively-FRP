@@ -151,7 +151,6 @@ function(t) {return t * 3});
         evaluator.addStreamsFrom(obj);
         evaluator.sort();
 
-        debugger;
         obj.evaluateAt(1000);
         this.assertEquals(collector.currentValue.now, 1);
         obj.evaluateAt(2000);
@@ -160,7 +159,36 @@ function(t) {return t * 3});
         this.assertEquals(collector.currentValue.now, 3);
         obj.evaluateAt(4000);
         this.assertEquals(collector.currentValue.now, 5);
+    },
+    testDuration: function() {
+        var obj = {};
+        var evaluator = this.newEvaluator();
+        evaluator.installTo(obj);
+
+        var timer = new users.ohshima.frp.FRPCore.EventStream().durationE(1000, 10000);
+        timer.finalize([]);
+        timer.installTo(obj, "timer");
+
+        evaluator.reset();
+        evaluator.addStreamsFrom(obj);
+        evaluator.sort();
+
+        obj.evaluateAt(1000);
+        this.assertEquals(timer.currentValue, 0);
+        obj.evaluateAt(2000);
+        this.assertEquals(timer.currentValue, 1000);
+        obj.evaluateAt(9000);
+        this.assertEquals(timer.currentValue, 8000);
+        obj.evaluateAt(10001);
+        this.assertEquals(timer.currentValue, 9000);
+        this.assertEquals(timer.done, false);
+        obj.evaluateAt(11000);
+        this.assertEquals(timer.currentValue, 10000);
+        this.assertEquals(timer.done, true);
+        obj.evaluateAt(12000);
+        this.assertEquals(timer.currentValue, 10000);
     }
+
 
 },
 'support', {
