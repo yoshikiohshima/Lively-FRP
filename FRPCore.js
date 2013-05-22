@@ -1,6 +1,9 @@
 module('users.ohshima.frp.FRPCore').requires().toRun(function() {
 
 Object.subclass('users.ohshima.frp.FRPCore.StreamRef',
+// StreamRef represents the loose-coupled variable name.
+// It is used for the key to look up the corresponding stream
+// in the owner object.
 'all', {
     initialize: function($super, ref, last) {
         this.ref = ref;
@@ -10,14 +13,30 @@ Object.subclass('users.ohshima.frp.FRPCore.StreamRef',
 });
 
 Object.subclass('users.ohshima.frp.FRPCore.EventStream',
+//EventStream represents a node in the data flow graph.
 'initialization', {
     setUp: function(type, srcs, updater, checker, isContinuous) {
+    // type is either a pre-defined combinator ("timerE", "collectE", etc) or
+    // generic "exprE", that is used for everything else.
+    //
+    // sources is a list of (StreamsRef | value) that is used to compute 
+    // the new value of the stream.  a value is allowed when a sub term is not
+    // a stream, but a value.
+    // 
+    // depenencies is a list of (StreamRef) that is used to determine whether
+    // this stream should be updated.  Usually, dependencies are a super-set of
+    // sources.
+    //
+    // currentValue is the currentValue of the stream.  Last Value is the 
+    // last value.
+    //
+    // checker and updater are functions to determine the stream should be updated,
+    // and compute the actual new value.
         this.id = this.constructor.nextId++;
         this.type = type;
         this.updater = updater || this.basicUpdater;
-        this.isBehavior = false;
         this.sources = srcs;
-        this.dependents = srcs.clone();
+        this.dependencies = srcs.clone();
         this.currentValue = undefined;
         this.lastValue = undefined;
         this.checker = checker || this.basicChecker;
@@ -31,6 +50,11 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
     },
     
     installTo: function(object, name) {
+    // In a typical case, the receiver is stored into object under name.
+    // For a timer, it starts the timer.
+    // The evaluator is reset as the network may change.
+    // When the stream is continuous, the potential dependents will be evaluated
+    // upon next available step.
         if (this.type === "timerE") {
             object.evaluator.timers.push(this);
             //this.timerId = setInterval(function() {
@@ -61,6 +85,10 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
 },
 'evaluation', {
     addSubExpression: function(id, stream) {
+    // Add a sub stream for a complex stream.  A sub stream is an internal stream
+    // that represents a sub expression of a stream.  For example, if the stream
+    // definition is "a + b * c", "b * c" is a sub-stream, and the top level stream
+    // is "+" with "a" and the sub-stream.
         if (!this.subExpressions) {
             this.subExpressions = [];
         }
@@ -69,41 +97,48 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
     },
     
     finalize: function(collection) {
+    // Make sure that subExpressions field at least has a value.
+    // collection is a collection of additional dependencies.
         if (!this.subExpressions) {
             this.subExpressions = [];
         }
         collection.forEach(function(elem) {
             var hasIt = false;
-            this.dependents.forEach(function(e) {
+            this.dependencies.forEach(function(e) {
                 if (this.isStreamRef(e) && e.ref === elem.ref) {
                     hasIt = true;
                 }
             }.bind(this));
             if (!hasIt) {
-               this.dependents.push(elem);
+               this.dependencies.push(elem);
             }
         }.bind(this));
         return this;
     },
 
     evalSubExpression: function(time, space, evaluator) {
+    // Evaluate this as a sub expression.
+    // When evaluating a sub expression, there is no need to keep the last value
         var val = this.updater(space, evaluator);
         if (val !== undefined) {
             this.lastValue = this.currentValue = val;
-            this.setLastTime(time);
+            this.setLastTime(this.type === "timerE" ? val : time);
             return true;
         }
         return false;
     },
 
     maybeEvalAt: function(time, evaluator) {
+    // Evaluate a stream.  First attempt to evaluate the sub expressions in order
+    //  and then evaluate the top level stream (this) if necessary.
         var changed = false;
-        this.subExpressions.forEach(function(ref) {
+        for (var i = 0; i < this.subExpressions.length; i++) {
+            var ref = this.subExpressions[i];
             var elem = this[ref.ref] || this.owner[ref.ref];
             if (elem.checker(this, time, evaluator)) {
                 changed = elem.evalSubExpression(time, this, evaluator) || changed;
             }
-        }.bind(this));
+        }
         if (this.checker(this, time, evaluator)) {
             var val = this.updater(this, evaluator);
             if (val !== undefined) {
@@ -120,11 +155,13 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
     },
 
     basicChecker: function(space, time, evaluator) {
-        var dependents = evaluator.dependents[this.id];
+    // The default implementation of checker.  It checks all dependencies of
+    // this stream.  If it should be evaluated, it fetches the values to be used.
+        var dependencies = evaluator.dependencies[this.id];
         var result = null;
         var args = evaluator.arguments[this.id];
-        for (var i = 0; i < dependents.length; i++) {
-            var src = dependents[i];
+        for (var i = 0; i < dependencies.length; i++) {
+            var src = dependencies[i];
             if (this.isEventStream(src)) {
                 if (src.currentValue === undefined)
                     result = result === null ? false : result;
@@ -142,10 +179,12 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
         return result === null ? false : result;
     },
     basicUpdater: function(space, evaluator) {
+    // The updater for the expr type
         return this.expression.apply(this, evaluator.arguments[this.id]);
     },
 
     frpGet: function(ref) {
+    // Fetches the value from ref
         if (this.isStreamRef(ref)) {
             var v = this.lookup(ref);
             var last = ref.last;
@@ -201,19 +240,19 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         delete this.results;
         this.sources = {};
         this.arguments = {};
-        this.dependents = {};
+        this.dependencies = {};
         this.endNodes = {};
         this.wasInvalidated = true;
         this.invalidated = true;
         return this;
         
     },
-    addDependents: function(elem, top) {
+    addDependencies: function(elem, top) {
         var srcs = this.sources[elem.id] = [];
-        var deps = this.dependents[elem.id] = [];
+        var deps = this.dependencies[elem.id] = [];
         elem.visited = false;
-        for (var i = 0; i < elem.dependents.length; i++) {
-            var depRef = elem.dependents[i];
+        for (var i = 0; i < elem.dependencies.length; i++) {
+            var depRef = elem.dependencies[i];
             var dep = top.lookup(depRef);
             if (this.isEventStream(dep) && !depRef.isSubExpression) {
                 deps.push(dep);
@@ -228,16 +267,18 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         }
     },
     addStreamsFrom: function(object) {
+    // An entry point to gather all streams in object.  For each top-level
+    // stream, its sub expressions are visited. 
         for (var k in object) {
             var v = object[k];
             if (this.isEventStream(v) && !this.sources[v.id]) {
                 if (this.endNodes[v.id] !== this.deletedNode) {
                     this.endNodes[v.id] = v;
                 }
-                this.addDependents(v, v);
+                this.addDependencies(v, v);
                 for (i = 0; i < v.subExpressions.length; i++) {
                     var s = v.lookup(v.subExpressions[i]);
-                    this.addDependents(s, v);
+                    this.addDependencies(s, v);
                 }  
             }
         }
@@ -254,9 +295,10 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         if (!elem.visited) {
             elem.visited = true;
             col.push(elem);
-            this.dependents[elem.id].forEach(function(srcElem) {
+            for (var i = 0; i < this.dependencies.length; i++) {
+                var srcElem = this.dependencies[i];
                 this.visit(srcElem, col);
-            }.bind(this));
+            }
             col.pop();
             this.results.push(elem);
         }
