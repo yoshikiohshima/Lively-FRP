@@ -43,6 +43,9 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
         this.isContinuous = isContinuous || false;
         this.setLastTime(0);
     },
+    setCode: function(aString) {
+        this.code = aString;
+    },
 
     beContinous: function(val) {
         this.currentValue = val;
