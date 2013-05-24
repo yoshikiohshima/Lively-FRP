@@ -7,19 +7,18 @@ TestCase.subclass('users.ohshima.frp.FRPTests',
         var obj = {};
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).finalize([]);
         timer.installTo(obj, "timer");
         evaluator.reset();
         evaluator.addStreamsFrom(obj);
         var result = evaluator.sort();
-        obj.evaluateAt(500);
+        evaluator.evaluateAt(500);
         this.assertEquals(timer.currentValue, undefined);
-        obj.evaluateAt(1000);
+        evaluator.evaluateAt(1000);
         this.assertEquals(timer.currentValue, 1000);
-        obj.evaluateAt(1999);
+        evaluator.evaluateAt(1999);
         this.assertEquals(timer.currentValue, 1000);
-        obj.evaluateAt(2001);
+        evaluator.evaluateAt(2001);
         this.assertEquals(timer.currentValue, 2000);
     },
     testSorter: function() {
@@ -38,9 +37,9 @@ function(t) {return 0 - t});
         evaluator.addStreamsFrom(obj);
         result = evaluator.sort();
 
-        obj.evaluateAt(3500);
+        evaluator.evaluateAt(3500);
         this.assertEquals(expr1.currentValue, -3000);
-        obj.evaluateAt(4000);
+        evaluator.evaluateAt(4000);
         this.assertEquals(expr1.currentValue, -4000);
     },
     testSorter2: function() {
@@ -71,9 +70,9 @@ function(x, y) {return x + y});
         evaluator.addStreamsFrom(obj);
         evaluator.sort();
 
-        obj.evaluateAt(3500);
+        evaluator.evaluateAt(3500);
         this.assertEquals(expr3.currentValue, 6000);
-        obj.evaluateAt(4000);
+        evaluator.evaluateAt(4000);
         this.assertEquals(expr3.currentValue, 8000);
     },
 
@@ -100,9 +99,9 @@ function(t) {return t * 3});
         evaluator.addStreamsFrom(obj);
         evaluator.sort();
 
-        obj.evaluateAt(3500);
+        evaluator.evaluateAt(3500);
         this.assertEquals(expr1.currentValue, -9000);
-        obj.evaluateAt(4000);
+        evaluator.evaluateAt(4000);
         this.assertEquals(expr1.currentValue, -12000);
     },
     testConstant: function() {
@@ -128,9 +127,9 @@ function(t) {return t * 3});
         evaluator.addStreamsFrom(obj);
         evaluator.sort();
 
-        obj.evaluateAt(3500);
+        evaluator.evaluateAt(3500);
         this.assertEquals(expr1.currentValue, -8900);
-        obj.evaluateAt(4000);
+        evaluator.evaluateAt(4000);
         this.assertEquals(expr1.currentValue, -11900);
     },
     testCollect: function() {
@@ -151,13 +150,13 @@ function(t) {return t * 3});
         evaluator.addStreamsFrom(obj);
         evaluator.sort();
 
-        obj.evaluateAt(1000);
+        evaluator.evaluateAt(1000);
         this.assertEquals(collector.currentValue.now, 1);
-        obj.evaluateAt(2000);
+        evaluator.evaluateAt(2000);
         this.assertEquals(collector.currentValue.now, 2);
-        obj.evaluateAt(3000);
+        evaluator.evaluateAt(3000);
         this.assertEquals(collector.currentValue.now, 3);
-        obj.evaluateAt(4000);
+        evaluator.evaluateAt(4000);
         this.assertEquals(collector.currentValue.now, 5);
     },
     testDuration: function() {
@@ -165,27 +164,26 @@ function(t) {return t * 3});
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
 
-        var timer = new users.ohshima.frp.FRPCore.EventStream().durationE(1000, 10000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().durationE(1000, 10000).finalize([]);
         timer.installTo(obj, "timer");
 
         evaluator.reset();
         evaluator.addStreamsFrom(obj);
         evaluator.sort();
 
-        obj.evaluateAt(1000);
+        evaluator.evaluateAt(1000);
         this.assertEquals(timer.currentValue, 0);
-        obj.evaluateAt(2000);
+        evaluator.evaluateAt(2000);
         this.assertEquals(timer.currentValue, 1000);
-        obj.evaluateAt(9000);
+        evaluator.evaluateAt(9000);
         this.assertEquals(timer.currentValue, 8000);
-        obj.evaluateAt(10001);
+        evaluator.evaluateAt(10001);
         this.assertEquals(timer.currentValue, 9000);
         this.assertEquals(timer.done, false);
-        obj.evaluateAt(11000);
+        evaluator.evaluateAt(11000);
         this.assertEquals(timer.currentValue, 10000);
         this.assertEquals(timer.done, true);
-        obj.evaluateAt(12000);
+        evaluator.evaluateAt(12000);
         this.assertEquals(timer.currentValue, 10000);
     }
 

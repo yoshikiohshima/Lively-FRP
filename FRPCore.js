@@ -53,21 +53,19 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
     },
     
     installTo: function(object, name) {
-    // In a typical case, the receiver is stored into object under name.
-    // For a timer, it starts the timer.
-    // The evaluator is reset as the network may change.
+    // Install this into the owner object under the name
     // When the stream is continuous, the potential dependents will be evaluated
     // upon next available step.
-        if (this.type === "timerE") {
-            object.evaluator.timers.push(this);
-            //this.timerId = setInterval(function() {
-            //      this.owner.evaluator.evaluate();}.bind(this), this.interval);
-        }
+        object.__evaluator.installStream(this);
         object[name] = this;
         this.owner = object;
         if (this.isContinuous) {
             this.setLastTime(-1);
         }
+    },
+
+    uninstall: function() {
+        this.owner.__evaluator.uninstallStream(this);
     },
 
     timerE: function(interval) {
@@ -90,6 +88,7 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
                 var val = this.ceilTime(evaluator.currentTime, this.interval) - this.start;
                 if (val >= dur) {
                     this.done = true;
+                    evaluator.removeTimer(this);
                     val = dur;
                 }
                 return val;
@@ -278,6 +277,7 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         this.reset();
         this.deletedNode = null;
         this.timers = [];
+        this.syncWithRealTime = false;
         return this;
     },
     reset: function() {
@@ -288,6 +288,7 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         this.endNodes = {};
         this.wasInvalidated = true;
         this.invalidated = true;
+        this.clearTimers();
         return this;
         
     },
@@ -359,49 +360,69 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
     },
     evaluate: function() {
         var now = Date.now();
-        return this.evaluateAt(now - this.object.startTime);
+        if (!this.results) {
+            this.addStreamsFrom(this.object);
+            this.sort();
+        }
+        return this.evaluateAt(now - this.object.__startTime);
     },
     evaluateAt: function(time) {
         var changed = false;
         this.currentTime = time;
-        var s = this.result;
         for (var i = 0; i < this.results.length; i++) {
             changed = this.results[i].maybeEvalAt(time, this) || changed;
         }
         return changed;
     },
-    sortAndEvaluateAt: function(time) {
-        this.sort();
-        this.wasInvalidated = true;
-        this.evaluateAt(time);
+    resetSortedResults: function() {
+        this.results = null;
     },
     installTo: function(object) {
-        object.startTime = Date.now();
-        object.evaluator = this;
+        object.__startTime = Date.now();
+        object.__evaluator = this;
         this.object = object;
-        object.evaluate = function() {
-            if (!this.evaluator.results) {
-                this.evaluator.addSortedStreamsFrom(this);
-                this.evaluator.sort();
-            }
-            this.evaluator.evaluateAt(Date.now() - this.startTime);
-        }.bind(object);
-        object.evaluateAt = function(time) {
-            if (!this.evaluator.results) {
-                this.evaluator.addSortedStreamsFrom(this);
-                this.evaluator.sort();
-            }
-            this.evaluator.evaluateAt(time);
-        }.bind(object);
-
     },
+
+    installStream: function(strm) {
+    // For a timer, it starts the timer.
+    // The evaluator is reset as the network may change.
+        if (strm.type === "timerE" || strm.type === "durationE") {
+            this.addTimer(strm);
+        }
+        this.resetSortedResults();
+    },
+
+    uninstallStream: function(strm) {
+        if (strm.type === "timerE" || strm.type === "durationE") {
+            this.removeTimer(strm);
+        }
+        this.resetSortedResults();
+   },
+
     addTimer: function(timer) {
-        this.timers.push(timer);
-        this.constructors.allTimers.push(timer);
-        timer.timerId = setInterval(function() {this.evaluate();}.bind(this), timer.interval);
-
+        if (this.syncWithRealTime) {
+            this.timers.push(timer);
+            this.constructor.allTimers.push(timer);
+            timer.timerId = setInterval(function() {this.evaluate();}.bind(this), timer.interval);
+        }
     },
-    clearAllTimer: function() {
+
+    removeTimer: function(strm) {
+        window.clearInterval(strm.timerId);
+        this.timers.remove(strm);
+        this.constructor.allTimers.remove(strm);
+    },
+
+    clearTimers: function() {
+        if (this.timers) {
+            this.timers.forEach(function(strm) {
+                window.clearInterval(strm.timerId);
+                this.constructor.allTimers.remove(strm);
+            }.bind(this));
+        }
+        this.timers = [];
+    },
+    clearAllTimers: function() {
         for (var i = 1; i < 99999; i++) {
             window.clearInterval(i);
         }
