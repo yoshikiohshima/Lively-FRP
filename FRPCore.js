@@ -45,11 +45,12 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
     },
     setCode: function(aString) {
         this.code = aString;
+        return this;
     },
 
-    beContinous: function(val) {
+    beContinuous: function(val) {
         this.currentValue = val;
-        this.isContinous = true;
+        this.isContinuous = true;
     },
     
     installTo: function(object, name) {
@@ -124,7 +125,15 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
         this.setUp("exprE", arguments, null, null, isContinuous);
         this.expression = expression;
         return this;
+    },
+    value: function(initialValue) {
+        this.setUp("value", [], null, null);
+        if (initialValue === undefined) {
+            this.beContinuous(initialValue);
+        }
+        return this;
     }
+
 },
 'evaluation', {
     addSubExpression: function(id, stream) {
@@ -225,6 +234,13 @@ Object.subclass('users.ohshima.frp.FRPCore.EventStream',
     // The updater for the expr type
         return this.expression.apply(this, evaluator.arguments[this.id]);
     },
+    
+    frpSet: function(val) {
+        this.currentValue = val;
+        this.setLastTime(this.owner.__evaluator.currentTime+1);
+        this.owner.__evaluator.evaluate();
+        return val;
+    },
 
     frpGet: function(ref) {
     // Fetches the value from ref
@@ -278,6 +294,7 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         this.deletedNode = null;
         this.timers = [];
         this.syncWithRealTime = false;
+        this.clearTimers();
         return this;
     },
     reset: function() {
@@ -286,9 +303,6 @@ Object.subclass('users.ohshima.frp.FRPCore.Evaluator',
         this.arguments = {};
         this.dependencies = {};
         this.endNodes = {};
-        this.wasInvalidated = true;
-        this.invalidated = true;
-        this.clearTimers();
         return this;
         
     },

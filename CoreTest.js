@@ -7,7 +7,7 @@ TestCase.subclass('users.ohshima.frp.FRPTests',
         var obj = {};
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).setCode("timerE(1000)").finalize([]);
         timer.installTo(obj, "timer");
         evaluator.reset();
         evaluator.addStreamsFrom(obj);
@@ -25,11 +25,9 @@ TestCase.subclass('users.ohshima.frp.FRPTests',
         var obj = {};
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).setCode("timerE(1000)").finalize([]);
         var expr1 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("timer")],
-function(t) {return 0 - t});
-        expr1.finalize([]);
+function(t) {return 0 - t}).setCode("0 - timer").finalize([]);
         timer.installTo(obj, "timer");
         expr1.installTo(obj, "expr1");
 
@@ -47,23 +45,19 @@ function(t) {return 0 - t});
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
 
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).setCode("timerE(1000)").finalize([]);
         timer.installTo(obj, "timer");
 
         var expr1 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("timer")],
-function(t) {return 0 - t});
-        expr1.finalize([]);
+function(t) {return 0 - t}).setCode("0 - timer").finalize([]);
         expr1.installTo(obj, "expr1");
 
         var expr2 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("timer")],
-function(t) {return t * 3});
-        expr2.finalize([]);
+function(t) {return t * 3}).setCode("timer * 3").finalize([]);
         expr2.installTo(obj, "expr2");
 
         var expr3 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("expr1"), this.ref("expr2")],
-function(x, y) {return x + y});
-        expr3.finalize([]);
+function(x, y) {return x + y}).setCode("expr1 + expr2").finalize([]);
         expr3.installTo(obj, "expr3");
 
         evaluator.reset();
@@ -81,19 +75,16 @@ function(x, y) {return x + y});
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
 
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).setCode("timerE(1000)").finalize([]);
         timer.installTo(obj, "timer");
 
         var expr1 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("_t1")],
-function(t) {return 0 - t});
+function(t) {return 0 - t}).setCode("0 - (timer * 3)").finalize([this.ref("timer")]);
         expr1.installTo(obj, "expr1");
 
         var expr2 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("timer")],
-function(t) {return t * 3});
-        expr2.finalize([]);
+function(t) {return t * 3}).finalize([]);
         expr1.addSubExpression("_t1", expr2);
-        expr1.finalize([this.ref("timer")]);
 
         evaluator.reset();
         evaluator.addStreamsFrom(obj);
@@ -109,19 +100,16 @@ function(t) {return t * 3});
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
 
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).setCode("timerE(1000)").finalize([]);
         timer.installTo(obj, "timer");
 
         var expr1 = new users.ohshima.frp.FRPCore.EventStream().expr([100, this.ref("_t1")],
-function(c, t) {return c - t});
+function(c, t) {return c - t}).setCode("100 - (timer * 3)").finalize([this.ref("timer")]);
         expr1.installTo(obj, "expr1");
 
         var expr2 = new users.ohshima.frp.FRPCore.EventStream().expr([this.ref("timer")],
-function(t) {return t * 3});
-        expr2.finalize([]);
+function(t) {return t * 3}).finalize([]);
         expr1.addSubExpression("_t1", expr2);
-        expr1.finalize([this.ref("timer")]);
 
         evaluator.reset();
         evaluator.addStreamsFrom(obj);
@@ -137,14 +125,12 @@ function(t) {return t * 3});
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
 
-        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000);
-        timer.finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().timerE(1000).setCode("timerE(1000)").finalize([]);
         timer.installTo(obj, "timer");
 
         var collector = new users.ohshima.frp.FRPCore.EventStream().collector("timer", {now: 1, prev: 0},
-            function(newVal, oldVal) {return {now: oldVal.now + oldVal.prev, prev: oldVal.now}});
+            function(newVal, oldVal) {return {now: oldVal.now + oldVal.prev, prev: oldVal.now}}).setCode("timer.collectE({now: 1, prev: 0}, function(newVal, oldVal) {return {now: oldVal.now + oldVal.prev, prev: oldVal.now}}").finalize([]);
         collector.installTo(obj, "collector");
-        collector.finalize([]);
 
         evaluator.reset();
         evaluator.addStreamsFrom(obj);
@@ -164,7 +150,7 @@ function(t) {return t * 3});
         var evaluator = this.newEvaluator();
         evaluator.installTo(obj);
 
-        var timer = new users.ohshima.frp.FRPCore.EventStream().durationE(1000, 10000).finalize([]);
+        var timer = new users.ohshima.frp.FRPCore.EventStream().durationE(1000, 10000).setCode("durationE(1000, 10000)").finalize([]);
         timer.installTo(obj, "timer");
 
         evaluator.reset();
